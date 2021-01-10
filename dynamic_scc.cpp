@@ -3,11 +3,15 @@
 using namespace std;
 
 int counter = 0;
-const int mx = 2e5 + 5;
+const int mx = 5e5 + 5; //size limit
 vector<int> adj[mx], scc_nodes[mx];
-vector<pair <int, int> > inter_comp[mx];
+vector<int> comp_graph[mx];
 int visited[mx], instack[mx], disc[mx], lowlink[mx], comp[mx];
+set<int> comp_nodes;
 
+int comp_visited[mx], comp_instack[mx], comp_disc[mx], comp_lowlink[mx], comp_comp[mx];
+
+int yeah = 0, nah = 0;
 
 void tarjan(int u, stack<int> &st)
 {
@@ -57,41 +61,53 @@ void reset(int origin)
 	counter = 0;
 }
 
-// To merge 2 component together
-void join(int u, int v)
+
+void super_join(int u, stack<int> &comp_st)
 {
-	int origin = comp[u];
-	int transfer = comp[v];
-	for(int vertex : scc_nodes[transfer])
+	comp_disc[u] = comp_lowlink[u] = ++counter;
+	comp_st.push(u);
+	comp_visited[u] = 1;
+	comp_instack[u] = 1;
+	
+	for(auto v : comp_graph[u])
 	{
-		scc_nodes[origin].push_back(vertex);
-		comp[vertex] = origin;
-	}
-	scc_nodes[transfer].clear();
-	
-	vector<pair <int, int> >temp;
-	//add inter-comp edges of both SCCs to temp
-	for(auto edge : inter_comp[origin])
-		temp.push_back(edge);
-	
-	for(auto edge : inter_comp[transfer])
-		temp.push_back(edge);
-	
-	inter_comp[origin].clear();
-	inter_comp[transfer].clear();
-		
-	//Now add only the relevant edges back to inter-comp
-	int a, b;
-	for(auto edge : temp)
-	{
-		a = edge.first;
-		b = edge.second;
-		if(comp[a] != comp[b])
+		if(comp_visited[comp[v]] == 0)
 		{
-			inter_comp[origin].push_back({a,b});
+			super_join(comp[v], comp_st);
+			comp_lowlink[u] = min(comp_lowlink[u], comp_lowlink[comp[v]]);
 		}
-	}	
+		else if(comp_instack[comp[v]])
+			comp_lowlink[u] = min(comp_lowlink[u], comp_disc[comp[v]]); //This condition in only specific for articulation points
+			// for bridges and SCC we can use lowlink[u]= min(lowlink[u], lowlink[v])
+			// But here the definition of lowlink will obviously change
+	}
 	
+	if(comp_disc[u] == comp_lowlink[u])
+	{
+		int node;
+		do{
+			node = comp_st.top();
+			comp_st.pop();
+			//cout<<node<<" ";
+			comp_instack[node] = 0;
+			comp_comp[node] = u;
+		}while(node != u);
+		//cout<<"\n";
+	}
+}
+
+
+void reset_comp_graph()
+{
+	for (int i : comp_nodes)
+	{
+		comp_visited[i] = 0;
+		comp_instack[i] = 0;
+		comp_disc[i] = 0;
+		comp_lowlink[i] = 0;
+		comp_comp[i] = i;
+	}
+	counter = 0;
 }
 
 
@@ -105,25 +121,67 @@ void insert(int u, int v, int n)
 	}
 	else
 	{
-		//add to intercomponent edges and check if there is reverse
-		//intercomponent edge from the other one
-		//if so then merge SCC's
-		//else leave it as it is
-		inter_comp[comp[u]].push_back({u,v});
+		comp_graph[comp[u]].push_back(v);
 		
-		bool flag = false;
-		for(auto edge : inter_comp[comp[v]])
-		{
-			int to_node = edge.second;
-			if(comp[to_node] == comp[u])
+		reset_comp_graph();
+		
+		stack<int> comp_st;
+		
+		super_join(comp[u], comp_st);
+		
+		//reconfiguring all data structures after any possible joins
+		
+		int origin_comp = comp_comp[comp[u]]; // all merged componenets belong here
+		
+		vector <int> temp_graph;
+		//t1 = clock();
+		
+		for(int i : comp_nodes)
+		{	
+			if(comp_comp[i] != i && comp_comp[i] == origin_comp)
 			{
-				flag = true;
-				break;
+				for (int vertex : scc_nodes[i])
+				{
+					comp[vertex] = origin_comp;
+					scc_nodes[origin_comp].push_back(vertex);
+				}
+				scc_nodes[i].clear();
+			
 			}
 		}
 		
-		if(flag)
-			join(u, v);
+		
+		for (auto j : comp_graph[origin_comp])
+		{
+			if(origin_comp != comp_comp[comp[j]])
+			{
+				temp_graph.push_back(j);
+			}
+		}
+		comp_graph[origin_comp].clear();
+		
+		for (auto j : temp_graph)
+		{
+			comp_graph[origin_comp].push_back(j);
+		}
+		temp_graph.clear();
+		
+		for(int i : comp_nodes)
+		{
+			if(comp_comp[i] == origin_comp && i != origin_comp)
+			{
+				for (auto j : comp_graph[i])
+				{
+					if(comp_comp[i] != comp_comp[comp[j]])
+					{
+						comp_graph[origin_comp].push_back(j);
+					}
+				}
+				comp_graph[i].clear();
+			}
+		}
+		
+		comp_nodes.insert(origin_comp);
 		
 	}
 }
@@ -167,24 +225,29 @@ void improved_tarjan(int u, int origin, stack<int> &st)
 
 void remove(int u, int v, int n)
 {
+	bool happen = false;
 	for(int i = 0; i < (int)adj[u].size(); i++) 
 	{
         if(adj[u][i] == v) 
         {
             adj[u].erase(adj[u].begin() + i); // removes the edge 
+            happen = true;
             break;
         }
     }
+    
+    if(!happen)
+    return;
     
     if(comp[u] != comp[v]) // Deleted from different component no major effect
     {
 		int index = comp[u];
 		//remove edge from u's component inter component list
-		for(int i = 0; i < (int)inter_comp[index].size(); i++)
+		for(int i = 0; i < (int)comp_graph[index].size(); i++)
 		{
-			if(inter_comp[index][i].first == u && inter_comp[index][i].second == v)
+			if(comp_graph[index][i] == v)
 			{
-				inter_comp[index].erase(inter_comp[index].begin() + i); //removes the edge
+				comp_graph[index].erase(comp_graph[index].begin() + i); //removes the edge
 				break;
 			}
 		}
@@ -206,17 +269,27 @@ void remove(int u, int v, int n)
 		}
 		
 		//reconfigure scc_nodes and inter_comp edges
-		inter_comp[origin].clear();
+		comp_graph[origin].clear();
 		scc_nodes[origin].clear();
+		
+		for(auto itr = comp_nodes.begin(); itr != comp_nodes.end(); itr++)
+		{
+			if(*itr == origin)
+			{
+				comp_nodes.erase(itr);
+				break;
+			}
+		}
 		
 		for(int node : temp)
 		{
 			scc_nodes[comp[node]].push_back(node);
+			comp_nodes.insert(comp[node]);
 			for(auto j : adj[node])
 			{
 				if(comp[j] != comp[node])
 				{
-					inter_comp[comp[node]].push_back({node,j});
+					comp_graph[comp[node]].push_back(j);
 				}
 			}
 		}
@@ -229,9 +302,15 @@ void remove(int u, int v, int n)
 void query(int u, int v)
 {
 	if(comp[u] == comp[v])
+	{
 		cout<<"YES\n";
+		yeah++;
+	}
 	else
+	{
 		cout<<"NO\n";
+		nah++;
+	}
 }
 
 
@@ -244,10 +323,11 @@ void getCurrentTime()
 }
 
 
+
 int main()
 {
-	freopen("p2p.txt","r",stdin);
-    freopen("p2pout.txt","w",stdout);
+	freopen("input-graphs/p2p5.txt","r",stdin);
+    freopen("p2p5out.txt","w",stdout);
     
 	int n, e;
 	cin>>n>>e;
@@ -271,12 +351,15 @@ int main()
 	// Add inter-component edges based on initial results
 	for(int i = 1; i <= n; i++)
 	{
+		comp_nodes.insert(comp[i]);
+		
 		scc_nodes[comp[i]].push_back(i);
+		
 		for(auto j : adj[i])
 		{
 			if(comp[j] != comp[i])
 			{
-				inter_comp[comp[i]].push_back({i,j});
+				comp_graph[comp[i]].push_back(j);
 			}
 		}
 	}
@@ -295,16 +378,23 @@ int main()
 		int ch, u, v;
 		
 		cin>>ch>>u>>v;
-		
+
 		if(ch == 1)
+		{
 			insert(u, v, n);
+		}
 		else if(ch == 2)
+		{
 			remove(u, v, n);
+		}
 		else if(ch == 3)
+		{
 			query(u, v);	
+		}
 	}
 	
 	getCurrentTime(); // get total time of process
+	cout<<"\n"<<yeah<<" "<<nah<<"\n";
 	
 	return 0;
 }

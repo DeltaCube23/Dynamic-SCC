@@ -3,7 +3,7 @@
 using namespace std;
 
 int counter = 0;
-const int mx = 2e5 + 5;
+const int mx = 5e5 + 5; //size limit
 vector<int> adj[mx];
 int visited[mx], instack[mx], disc[mx], lowlink[mx], comp[mx];
 //adj - adjacency list of the graph
@@ -12,6 +12,8 @@ int visited[mx], instack[mx], disc[mx], lowlink[mx], comp[mx];
 //disc - tells discovery time of that node
 //lowlink - tells the lowlink value of that node
 //comp - indicates which SCC the node belongs to
+
+int yeah = 0, nah = 0;
 
 void dfs(int u, stack<int> &st) //Tarjan's Algorithm DFS
 {
@@ -100,9 +102,15 @@ void remove(int u, int v, int n) // To remove an edge
 void query(int u, int v) // Query to check if 2 points are in same SCC or not
 {
 	if(comp[u] == comp[v])
+	{
 		cout<<"YES\n";
+		yeah++;
+	}
 	else
+	{
 		cout<<"NO\n";
+		nah++;
+	}
 }
 
 clock_t start;
@@ -113,10 +121,11 @@ void getCurrentTime()
 	cout<<fixed<<setprecision(6)<<value<<"\n";
 }
 
+
 int main()
 {
-	freopen("p2p.txt","r",stdin);
-    freopen("p2pout.txt","w",stdout);
+	freopen("input-graphs/p2p5.txt","r",stdin);
+    freopen("p2p5out.txt","w",stdout);
     
 	int n, e;
 	cin>>n>>e;
@@ -150,16 +159,22 @@ int main()
 		int ch, u, v;
 		
 		cin>>ch>>u>>v;
-		
 		if(ch == 1)
+		{
 			insert(u, v, n);
+		}
 		else if(ch == 2)
+		{
 			remove(u, v, n);
+		}
 		else if(ch == 3)
-			query(u, v);	
+		{
+			query(u, v);
+		}	
 	}
 	
 	getCurrentTime(); // Get total process time
+	cout<<"\n"<<yeah<<" "<<nah;
 	
 	return 0;
 }
