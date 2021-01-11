@@ -61,22 +61,25 @@ void reset(int origin)
 	counter = 0;
 }
 
+vector<int> affected_comps;
 
-void super_join(int u, stack<int> &comp_st)
+void super_join(int u, stack<int> &comp_st, int marker)
 {
 	comp_disc[u] = comp_lowlink[u] = ++counter;
 	comp_st.push(u);
-	comp_visited[u] = 1;
-	comp_instack[u] = 1;
+	comp_visited[u] = marker;
+	comp_instack[u] = marker;
+	comp_comp[u] = u;
+	
 	
 	for(auto v : comp_graph[u])
 	{
-		if(comp_visited[comp[v]] == 0)
+		if(comp_visited[comp[v]] != marker)
 		{
-			super_join(comp[v], comp_st);
+			super_join(comp[v], comp_st, marker);
 			comp_lowlink[u] = min(comp_lowlink[u], comp_lowlink[comp[v]]);
 		}
-		else if(comp_instack[comp[v]])
+		else if(comp_instack[comp[v]] == marker)
 			comp_lowlink[u] = min(comp_lowlink[u], comp_disc[comp[v]]); //This condition in only specific for articulation points
 			// for bridges and SCC we can use lowlink[u]= min(lowlink[u], lowlink[v])
 			// But here the definition of lowlink will obviously change
@@ -89,6 +92,8 @@ void super_join(int u, stack<int> &comp_st)
 			node = comp_st.top();
 			comp_st.pop();
 			//cout<<node<<" ";
+			affected_comps.push_back(node);
+			
 			comp_instack[node] = 0;
 			comp_comp[node] = u;
 		}while(node != u);
@@ -99,17 +104,33 @@ void super_join(int u, stack<int> &comp_st)
 
 void reset_comp_graph()
 {
-	for (int i : comp_nodes)
+	/*for (int i : comp_nodes)
 	{
 		comp_visited[i] = 0;
 		comp_instack[i] = 0;
 		comp_disc[i] = 0;
 		comp_lowlink[i] = 0;
 		comp_comp[i] = i;
-	}
+	}*/
 	counter = 0;
 }
 
+clock_t t1, t2;
+
+double getCurrentTime1() 
+{
+	double value = (double)(clock() - t1) / CLOCKS_PER_SEC;
+	return value;
+}
+
+double getCurrentTime2() 
+{
+	double value = (double)(clock() - t2) / CLOCKS_PER_SEC;
+	return value;
+}
+
+double tt1 = 0.0, tt2 = 0.0;
+int marker = 0;
 
 void insert(int u, int v, int n)
 {
@@ -121,22 +142,30 @@ void insert(int u, int v, int n)
 	}
 	else
 	{
+		//t1 = clock();
 		comp_graph[comp[u]].push_back(v);
 		
-		reset_comp_graph();
+		//reset_comp_graph();
+		counter = 0;
 		
 		stack<int> comp_st;
+		affected_comps.clear();
 		
-		super_join(comp[u], comp_st);
+		marker++;
+		
+		super_join(comp[u], comp_st, marker);
 		
 		//reconfiguring all data structures after any possible joins
 		
 		int origin_comp = comp_comp[comp[u]]; // all merged componenets belong here
 		
 		vector <int> temp_graph;
-		//t1 = clock();
 		
-		for(int i : comp_nodes)
+		//tt1 += getCurrentTime1();
+		
+		//t2 = clock();		
+		
+		for(int i : affected_comps)
 		{	
 			if(comp_comp[i] != i && comp_comp[i] == origin_comp)
 			{
@@ -166,7 +195,7 @@ void insert(int u, int v, int n)
 		}
 		temp_graph.clear();
 		
-		for(int i : comp_nodes)
+		for(int i : affected_comps)
 		{
 			if(comp_comp[i] == origin_comp && i != origin_comp)
 			{
@@ -178,11 +207,13 @@ void insert(int u, int v, int n)
 					}
 				}
 				comp_graph[i].clear();
+				comp_nodes.erase(i);
 			}
 		}
 		
 		comp_nodes.insert(origin_comp);
 		
+		//tt2 += getCurrentTime2();
 	}
 }
 
@@ -326,8 +357,8 @@ void getCurrentTime()
 
 int main()
 {
-	freopen("input-graphs/p2p5.txt","r",stdin);
-    freopen("p2p5out.txt","w",stdout);
+	freopen("input-graphs/wikiin.txt","r",stdin);
+    freopen("wikiout.txt","w",stdout);
     
 	int n, e;
 	cin>>n>>e;
@@ -395,6 +426,7 @@ int main()
 	
 	getCurrentTime(); // get total time of process
 	cout<<"\n"<<yeah<<" "<<nah<<"\n";
+	//cout<<tt1<<" "<<tt2<<"\n";
 	
 	return 0;
 }

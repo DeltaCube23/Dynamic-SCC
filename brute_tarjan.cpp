@@ -124,8 +124,8 @@ void getCurrentTime()
 
 int main()
 {
-	freopen("input-graphs/p2p5.txt","r",stdin);
-    freopen("p2p5out.txt","w",stdout);
+	freopen("input-graphs/wikiin.txt","r",stdin);
+    freopen("wikiout.txt","w",stdout);
     
 	int n, e;
 	cin>>n>>e;
