@@ -11,7 +11,21 @@ set<int> comp_nodes;
 
 int comp_visited[mx], comp_instack[mx], comp_disc[mx], comp_lowlink[mx], comp_comp[mx];
 
-int yeah = 0, nah = 0;
+//adj - adjacency list of the graph
+//visitied - indicates if a node is visited or not
+//instack - indicates if a node is currently in the stack or not
+//disc - tells discovery time of that node
+//lowlink - tells the lowlink value of that node
+//comp - indicates which SCC the node belongs to
+//comp_visited - indicates if a component is visited or not for comp tarjan
+//comp_instack - indicates if a component is in the stack or not
+//comp_disc - tell discovery time of that comp
+//comp_lowlink - tells the lowlink value of the comp
+//comp_comp - shows if the component has changed it's bigger component
+//comp_graph - forest of inter comp edges
+//comp_nodes - list of existing components
+
+int yeah = 0, nah = 0; // count of yes and no
 
 void tarjan(int u, stack<int> &st)
 {
@@ -61,7 +75,7 @@ void reset(int origin)
 	counter = 0;
 }
 
-vector<int> affected_comps;
+vector<int> affected_comps; // to store all components that change after edge added b/w 2 different components
 
 void super_join(int u, stack<int> &comp_st, int marker)
 {
@@ -102,35 +116,8 @@ void super_join(int u, stack<int> &comp_st, int marker)
 }
 
 
-void reset_comp_graph()
-{
-	/*for (int i : comp_nodes)
-	{
-		comp_visited[i] = 0;
-		comp_instack[i] = 0;
-		comp_disc[i] = 0;
-		comp_lowlink[i] = 0;
-		comp_comp[i] = i;
-	}*/
-	counter = 0;
-}
-
-clock_t t1, t2;
-
-double getCurrentTime1() 
-{
-	double value = (double)(clock() - t1) / CLOCKS_PER_SEC;
-	return value;
-}
-
-double getCurrentTime2() 
-{
-	double value = (double)(clock() - t2) / CLOCKS_PER_SEC;
-	return value;
-}
-
-double tt1 = 0.0, tt2 = 0.0;
 int marker = 0;
+
 
 void insert(int u, int v, int n)
 {
@@ -142,11 +129,9 @@ void insert(int u, int v, int n)
 	}
 	else
 	{
-		//t1 = clock();
 		comp_graph[comp[u]].push_back(v);
-		
-		//reset_comp_graph();
-		counter = 0;
+
+		counter = 0; // reset for new iteration
 		
 		stack<int> comp_st;
 		affected_comps.clear();
@@ -159,11 +144,7 @@ void insert(int u, int v, int n)
 		
 		int origin_comp = comp_comp[comp[u]]; // all merged componenets belong here
 		
-		vector <int> temp_graph;
-		
-		//tt1 += getCurrentTime1();
-		
-		//t2 = clock();		
+		vector <int> temp_graph;	
 		
 		for(int i : affected_comps)
 		{	
@@ -212,8 +193,6 @@ void insert(int u, int v, int n)
 		}
 		
 		comp_nodes.insert(origin_comp);
-		
-		//tt2 += getCurrentTime2();
 	}
 }
 
@@ -426,7 +405,6 @@ int main()
 	
 	getCurrentTime(); // get total time of process
 	cout<<"\n"<<yeah<<" "<<nah<<"\n";
-	//cout<<tt1<<" "<<tt2<<"\n";
 	
 	return 0;
 }
